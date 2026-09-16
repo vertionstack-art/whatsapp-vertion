@@ -22,7 +22,7 @@ const CHAVE_CONFIG = "vertion_config";
 const CHAVE_CACHE = "vertion_biblioteca";
 
 /** Endereço padrão da biblioteca. Dá para trocar no popup. */
-const URL_PADRAO = "https://whatsapp-vertion.vercel.app/api/respostas";
+const URL_PADRAO = "https://wathsappvertion-chi.vercel.app/api/respostas";
 
 /** De quanto em quanto tempo buscar a biblioteca de novo. */
 const INTERVALO_MS = 30 * 60 * 1000;
