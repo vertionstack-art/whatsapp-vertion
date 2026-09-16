@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Vertion Atendimento",
-  "version": "0.1.0",
-  "description": "Biblioteca de respostas prontas dentro do WhatsApp Web, para a equipe da Vertion Stack responder mais rápido.",
+  "version": "0.2.0",
+  "description": "Respostas prontas, ficha do cliente e lembretes dentro do WhatsApp Web. Nunca envia mensagem sozinha.",
   "permissions": [
     "storage"
   ],

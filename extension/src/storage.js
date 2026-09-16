@@ -1,22 +1,44 @@
 /**
  * Camada de dados da extensão.
  *
- * Hoje tudo mora no chrome.storage.sync, que acompanha a conta Google de cada
- * um — some do PC e aparece no notebook sozinho. Para a equipe inteira ver a
- * mesma lista, dá pra trocar o corpo de `carregar` e `salvar` por uma chamada
- * ao painel na nuvem sem mexer em mais nada.
+ * Tudo vive no chrome.storage.sync, que acompanha a conta Google de cada
+ * pessoa — some do PC e aparece no notebook sozinho. Para a equipe inteira
+ * enxergar a mesma coisa, basta trocar o corpo destas funções por chamadas ao
+ * painel na nuvem; nada fora deste arquivo precisa mudar.
  */
 
-const CHAVE = "vertion_respostas";
+const CHAVE_RESPOSTAS = "vertion_respostas";
+const CHAVE_CLIENTES = "vertion_clientes";
+const CHAVE_USO = "vertion_uso";
 
-/** Respostas que já vêm prontas na primeira instalação. */
+/** Etapas do funil. A ordem é a do processo comercial da Vertion. */
+const STATUS = [
+  { id: "novo", rotulo: "Novo contato", cor: "#7A16E0" },
+  { id: "diagnostico", rotulo: "Diagnóstico feito", cor: "#8C3BE8" },
+  { id: "proposta", rotulo: "Proposta enviada", cor: "#B08D57" },
+  { id: "fechado", rotulo: "Fechado", cor: "#2E7D3E" },
+  { id: "producao", rotulo: "Em produção", cor: "#1E88E5" },
+  { id: "sem-retorno", rotulo: "Sem retorno", cor: "#7C7593" },
+];
+
+/**
+ * Respostas que já vêm prontas na primeira instalação.
+ * {nome} e {primeiro_nome} são trocados pelo nome de quem está na conversa.
+ */
 const PADRAO = [
+  {
+    id: "abertura",
+    atalho: "oi",
+    titulo: "Abertura",
+    texto:
+      "Oi, {primeiro_nome}! Aqui é da Vertion Stack. Me conta um pouco do seu negócio e o que está te tomando mais tempo hoje que eu te digo se dá pra resolver com tecnologia.",
+  },
   {
     id: "preco",
     atalho: "preco",
     titulo: "Quanto custa",
     texto:
-      "Depende do que você precisa: uma landing page é bem diferente de um sistema completo. Me conta rapidinho o que está travando aí no seu dia que eu já te passo uma faixa de valor, sem compromisso.",
+      "Depende do que você precisa, {primeiro_nome}: uma landing page é bem diferente de um sistema completo. Me conta rapidinho o que está travando aí no seu dia que eu já te passo uma faixa de valor, sem compromisso.",
   },
   {
     id: "prazo",
@@ -28,9 +50,9 @@ const PADRAO = [
   {
     id: "fidelidade",
     atalho: "fidelidade",
-    titulo: "Tem contrato de fidelidade",
+    titulo: "Tem fidelidade",
     texto:
-      "Não. Você contrata o projeto que precisa e pronto, sem fidelidade e sem mensalidade obrigatória.",
+      "Não tem fidelidade. Você contrata o projeto que precisa e pronto, sem mensalidade obrigatória.",
   },
   {
     id: "como-funciona",
@@ -40,40 +62,90 @@ const PADRAO = [
       "São quatro passos: (1) uma conversa de 15 min pra eu entender seu processo, (2) proposta por escrito em até 48h com prazo e valor, (3) construção, e (4) entrega com suporte pra ajustes.",
   },
   {
-    id: "abertura",
-    atalho: "oi",
-    titulo: "Abertura",
-    texto:
-      "Oi! Aqui é da Vertion Stack. Me conta um pouco do seu negócio e o que está te tomando mais tempo hoje que eu te digo se dá pra resolver com tecnologia.",
+    id: "horario",
+    atalho: "horario",
+    titulo: "Horário de atendimento",
+    texto: "A gente atende das 8h às 23h. Fora disso eu respondo logo cedo, a partir das 8h.",
   },
   {
     id: "fechamento",
     atalho: "fechar",
     titulo: "Fechamento",
     texto:
-      "Fechado! Vou montar a proposta com prazo e valor e te mando por aqui em até 48h. Qualquer dúvida no meio do caminho, é só chamar.",
+      "Fechado, {primeiro_nome}! Vou montar a proposta com prazo e valor e te mando por aqui em até 48h. Qualquer dúvida no meio do caminho, é só chamar.",
   },
 ];
 
-/** Lê a lista salva. Na primeira vez, grava e devolve as respostas padrão. */
+/* ── respostas ──────────────────────────────────────────────────────── */
+
 async function carregar() {
-  const dados = await chrome.storage.sync.get(CHAVE);
-  const lista = dados[CHAVE];
+  const dados = await chrome.storage.sync.get(CHAVE_RESPOSTAS);
+  const lista = dados[CHAVE_RESPOSTAS];
   if (Array.isArray(lista) && lista.length) return lista;
 
-  await chrome.storage.sync.set({ [CHAVE]: PADRAO });
+  await chrome.storage.sync.set({ [CHAVE_RESPOSTAS]: PADRAO });
   return PADRAO;
 }
 
 async function salvar(lista) {
-  await chrome.storage.sync.set({ [CHAVE]: lista });
+  await chrome.storage.sync.set({ [CHAVE_RESPOSTAS]: lista });
 }
 
-/** Avisa quem estiver ouvindo que a lista mudou (o painel aberto, por exemplo). */
+/* ── ficha do cliente (notas, status e lembrete) ────────────────────── */
+
+async function carregarClientes() {
+  const dados = await chrome.storage.sync.get(CHAVE_CLIENTES);
+  return dados[CHAVE_CLIENTES] ?? {};
+}
+
+async function lerCliente(chave) {
+  const clientes = await carregarClientes();
+  return clientes[chave] ?? { nota: "", status: "", lembrete: "" };
+}
+
+async function salvarCliente(chave, ficha) {
+  const clientes = await carregarClientes();
+
+  const vazia = !ficha.nota?.trim() && !ficha.status && !ficha.lembrete;
+  if (vazia) delete clientes[chave];
+  else clientes[chave] = { ...ficha, atualizadoEm: new Date().toISOString() };
+
+  await chrome.storage.sync.set({ [CHAVE_CLIENTES]: clientes });
+}
+
+/* ── contador de uso ────────────────────────────────────────────────── */
+
+/** Conta quantas vezes cada resposta foi usada, pra saber o que vale manter. */
+async function registrarUso(id) {
+  const dados = await chrome.storage.sync.get(CHAVE_USO);
+  const uso = dados[CHAVE_USO] ?? {};
+  uso[id] = (uso[id] ?? 0) + 1;
+  await chrome.storage.sync.set({ [CHAVE_USO]: uso });
+}
+
+async function carregarUso() {
+  const dados = await chrome.storage.sync.get(CHAVE_USO);
+  return dados[CHAVE_USO] ?? {};
+}
+
+/* ── avisos de mudança ──────────────────────────────────────────────── */
+
 function aoMudar(callback) {
   chrome.storage.onChanged.addListener((mudancas, area) => {
-    if (area === "sync" && mudancas[CHAVE]) callback(mudancas[CHAVE].newValue ?? []);
+    if (area !== "sync") return;
+    if (mudancas[CHAVE_RESPOSTAS]) callback(mudancas[CHAVE_RESPOSTAS].newValue ?? []);
   });
 }
 
-globalThis.VertionRespostas = { carregar, salvar, aoMudar, CHAVE, PADRAO };
+globalThis.VertionDados = {
+  STATUS,
+  PADRAO,
+  carregar,
+  salvar,
+  lerCliente,
+  salvarCliente,
+  carregarClientes,
+  registrarUso,
+  carregarUso,
+  aoMudar,
+};

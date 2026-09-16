@@ -1,6 +1,6 @@
 /** Tela de gerenciamento das respostas (o que abre ao clicar no ícone da extensão). */
 
-const { carregar, salvar } = globalThis.VertionRespostas;
+const { carregar, salvar, carregarUso } = globalThis.VertionDados;
 
 const lista = document.getElementById("lista");
 const formulario = document.getElementById("formulario");
@@ -10,6 +10,7 @@ const campoAtalho = document.getElementById("campo-atalho");
 const campoTexto = document.getElementById("campo-texto");
 
 let respostas = [];
+let uso = {};
 
 /** Vira um atalho seguro: minúsculo, sem espaço e sem acento. */
 function normalizarAtalho(valor) {
@@ -40,6 +41,7 @@ function desenhar() {
         <code class="item-atalho"></code>
       </div>
       <p class="item-texto"></p>
+      <p class="item-uso"></p>
       <div class="item-acoes">
         <button type="button" class="botao botao--pequeno" data-acao="editar">Editar</button>
         <button type="button" class="botao botao--pequeno botao--perigo" data-acao="excluir">Excluir</button>
@@ -48,6 +50,11 @@ function desenhar() {
     item.querySelector(".item-titulo").textContent = resposta.titulo;
     item.querySelector(".item-atalho").textContent = "/" + resposta.atalho;
     item.querySelector(".item-texto").textContent = resposta.texto;
+
+    // Saber o que é usado ajuda a podar o que não serve.
+    const vezes = uso[resposta.id] ?? 0;
+    item.querySelector(".item-uso").textContent =
+      vezes === 0 ? "ainda não usada" : `usada ${vezes}x`;
 
     item.querySelector('[data-acao="editar"]').addEventListener("click", () => editar(resposta));
     item.querySelector('[data-acao="excluir"]').addEventListener("click", () => excluir(resposta));
@@ -160,7 +167,8 @@ arquivo.addEventListener("change", async () => {
   }
 });
 
-carregar().then((iniciais) => {
+Promise.all([carregar(), carregarUso()]).then(([iniciais, contagem]) => {
   respostas = iniciais;
+  uso = contagem;
   desenhar();
 });

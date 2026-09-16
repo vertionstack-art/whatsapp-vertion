@@ -187,3 +187,11 @@ h1 {
   line-height: 1.4;
   color: #6e6788;
 }
+
+.item-uso {
+  margin: 0 0 9px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #a9a2bf;
+}

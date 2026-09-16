@@ -192,3 +192,139 @@
     transition: none;
   }
 }
+
+/* ── abas ─────────────────────────────────────────────────────────── */
+
+.vertion-abas {
+  display: flex;
+  gap: 4px;
+  padding: 0 16px 10px;
+}
+
+.vertion-aba {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid #e7e3f1;
+  border-radius: 9px;
+  background: #ffffff;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #565068;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.vertion-aba:hover {
+  border-color: #dfc9fb;
+  color: #7a16e0;
+}
+
+.vertion-aba--ativa {
+  border-color: #7a16e0;
+  background: #7a16e0;
+  color: #ffffff;
+}
+
+.vertion-conteudo {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 10px 10px;
+}
+
+/* ── aviso de lembrete vencido ────────────────────────────────────── */
+
+.vertion-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #b3261e;
+  color: #ffffff;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+/* ── ficha do cliente ─────────────────────────────────────────────── */
+
+.vertion-cliente-nome {
+  margin: 4px 6px 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #12101b;
+}
+
+.vertion-rotulo {
+  display: block;
+  margin: 0 6px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6e6788;
+}
+
+.vertion-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 6px 16px;
+}
+
+.vertion-chip {
+  padding: 6px 11px;
+  border: 1px solid #e7e3f1;
+  border-radius: 999px;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  color: #565068;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.vertion-chip:hover {
+  border-color: var(--cor, #7a16e0);
+  color: var(--cor, #7a16e0);
+}
+
+.vertion-chip--ativo {
+  border-color: var(--cor, #7a16e0);
+  background: var(--cor, #7a16e0);
+  color: #ffffff;
+}
+
+.vertion-nota,
+.vertion-data {
+  width: calc(100% - 12px);
+  margin: 0 6px 16px;
+  padding: 10px 12px;
+  border: 1px solid #e7e3f1;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #12101b;
+  background: #f8f7fb;
+  outline: none;
+  resize: vertical;
+}
+
+.vertion-nota:focus,
+.vertion-data:focus {
+  border-color: #7a16e0;
+  background: #ffffff;
+}
+
+.vertion-salvo {
+  margin: -8px 6px 4px;
+  height: 14px;
+  font-size: 11px;
+  color: #2e7d3e;
+}
