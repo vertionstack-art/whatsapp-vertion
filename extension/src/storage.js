@@ -38,32 +38,10 @@ const STATUS = [
 ];
 
 /**
- * Rede de segurança: se a nuvem estiver fora do ar na primeira instalação,
- * a pessoa ainda tem com o que trabalhar.
+ * Rede de segurança: se a nuvem não responder, vale a biblioteca que veio
+ * junto com a extensão (gerada a partir de src/lib/respostas.json).
  */
-const PADRAO = [
-  {
-    id: "abertura",
-    atalho: "oi",
-    titulo: "Abertura",
-    texto:
-      "Oi, {primeiro_nome}! Aqui é da Vertion Stack. Me conta um pouco do seu negócio e o que está te tomando mais tempo hoje que eu te digo se dá pra resolver com tecnologia.",
-  },
-  {
-    id: "preco",
-    atalho: "preco",
-    titulo: "Quanto custa",
-    texto:
-      "Depende do que você precisa, {primeiro_nome}: uma landing page é bem diferente de um sistema completo. Me conta rapidinho o que está travando aí no seu dia que eu já te passo uma faixa de valor, sem compromisso.",
-  },
-  {
-    id: "prazo",
-    atalho: "prazo",
-    titulo: "Quanto tempo demora",
-    texto:
-      "Site e landing page saem em 3 a 7 dias úteis. Dashboard e automação variam conforme a complexidade, e o prazo exato vai por escrito na proposta.",
-  },
-];
+const PADRAO = globalThis.VertionBiblioteca ?? [];
 
 /* ── configuração ───────────────────────────────────────────────────── */
 
