@@ -1,5 +1,5 @@
 /**
- * Injeta a central de atendimento da Vertion dentro do WhatsApp Web.
+ * Central de atendimento da Vertion dentro do WhatsApp Web.
  *
  * Regra que guia todo este arquivo: a extensão NUNCA envia mensagem sozinha.
  * Ela escreve o texto no campo e para — quem confere e aperta enviar é a
@@ -13,11 +13,12 @@
   const D = globalThis.VertionDados;
 
   let respostas = [];
+  let clientes = {};
+  let config = {};
   let aba = "respostas";
   let indiceSelecionado = 0;
   let contatoAtual = "";
   let fichaAtual = { nota: "", status: "", lembrete: "" };
-  let clientes = {};
   let modoAtalho = false;
 
   /* ── leitura do WhatsApp ────────────────────────────────────────── */
@@ -35,7 +36,11 @@
     );
   }
 
-  /** Nome de quem está na conversa aberta. Serve de chave da ficha e de {nome}. */
+  /** Campo de busca da lista de conversas, na coluna da esquerda. */
+  function acharBusca() {
+    return document.querySelector('#side div[contenteditable="true"]');
+  }
+
   function nomeDoContato() {
     const cabecalho = document.querySelector("#main header");
     if (!cabecalho) return "";
@@ -44,18 +49,37 @@
     return cabecalho.querySelector("span")?.textContent?.trim() ?? "";
   }
 
-  function primeiroNome(nome) {
-    return (nome || "").trim().split(/\s+/)[0] ?? "";
+  /* ── variáveis ──────────────────────────────────────────────────── */
+
+  function saudacaoDoMomento() {
+    const hora = new Date().getHours();
+    if (hora < 12) return "Bom dia";
+    if (hora < 18) return "Boa tarde";
+    return "Boa noite";
   }
 
-  /** Troca {nome} e {primeiro_nome} pelo contato da conversa aberta. */
   function aplicarVariaveis(texto) {
+    const agora = new Date();
     const nome = contatoAtual;
-    return texto
-      .replaceAll("{primeiro_nome}", primeiroNome(nome))
+
+    let saida = texto
+      .replaceAll("{primeiro_nome}", (nome || "").trim().split(/\s+/)[0] ?? "")
       .replaceAll("{nome}", nome)
-      .replace(/^(Oi|Olá|Fechado),\s*!/i, "$1!") // sem nome, não deixa vírgula solta
-      .replace(/\s+,/g, ",");
+      .replaceAll("{saudacao}", saudacaoDoMomento())
+      .replaceAll("{meu_nome}", config.meuNome ?? "")
+      .replaceAll("{data}", agora.toLocaleDateString("pt-BR"))
+      .replaceAll("{hora}", agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
+
+    // Sem nome na conversa, não deixa vírgula nem espaço sobrando.
+    saida = saida.replace(/\s+([,!?.])/g, "$1").replace(/,\s*([!?.])/g, "$1");
+
+    if (config.assinatura?.trim()) saida += `\n\n${config.assinatura.trim()}`;
+    return saida;
+  }
+
+  /** Campos preenchíveis: [[valor]] vira uma perguntinha antes de inserir. */
+  function camposDe(texto) {
+    return [...new Set([...texto.matchAll(/\[\[([^\]]+)\]\]/g)].map((m) => m[1].trim()))];
   }
 
   /* ── escrita no campo (sem enviar) ──────────────────────────────── */
@@ -105,6 +129,38 @@
     setTimeout(() => aviso.remove(), 2600);
   }
 
+  /* ── abrir conversas ────────────────────────────────────────────── */
+
+  /** Joga o nome na busca da esquerda — é como a pessoa acharia na mão. */
+  function procurarConversa(nome) {
+    const busca = acharBusca();
+    if (!busca) {
+      avisar("Não achei a busca do WhatsApp nesta tela.");
+      return;
+    }
+    busca.focus();
+    selecionarConteudo(busca, true);
+    document.execCommand("insertText", false, nome);
+    busca.dispatchEvent(new Event("input", { bubbles: true }));
+    fecharPainel();
+  }
+
+  /** Abre conversa com um número que não está salvo na agenda. */
+  function abrirPorNumero(numeroCru, texto) {
+    const digitos = (numeroCru || "").replace(/\D/g, "");
+    if (digitos.length < 8) {
+      avisar("Número curto demais. Inclua o DDD.");
+      return;
+    }
+    const ddi = config.ddiPadrao || "55";
+    const completo = digitos.length <= 11 ? ddi + digitos : digitos;
+
+    const url = new URL("https://web.whatsapp.com/send");
+    url.searchParams.set("phone", completo);
+    if (texto?.trim()) url.searchParams.set("text", texto.trim());
+    window.location.href = url.toString();
+  }
+
   /* ── ficha do cliente ───────────────────────────────────────────── */
 
   async function carregarFicha() {
@@ -123,9 +179,9 @@
 
   function lembretesVencidos() {
     const hoje = new Date().toISOString().slice(0, 10);
-    return Object.entries(clientes).filter(
-      ([, ficha]) => ficha.lembrete && ficha.lembrete <= hoje
-    );
+    return Object.entries(clientes)
+      .filter(([, ficha]) => ficha.lembrete && ficha.lembrete <= hoje)
+      .sort((a, b) => a[1].lembrete.localeCompare(b[1].lembrete));
   }
 
   function atualizarBadge() {
@@ -136,6 +192,7 @@
 
     if (!total) {
       badge?.remove();
+      botao.title = "Central da Vertion (Ctrl+Shift+Espaço)";
       return;
     }
     if (!badge) {
@@ -144,10 +201,10 @@
       botao.appendChild(badge);
     }
     badge.textContent = String(total);
-    botao.title = `${total} lembrete(s) vencido(s) · Ctrl+Shift+Espaço`;
+    botao.title = `${total} retorno(s) atrasado(s) · Ctrl+Shift+Espaço`;
   }
 
-  /* ── lista de respostas ─────────────────────────────────────────── */
+  /* ── aba: respostas ─────────────────────────────────────────────── */
 
   function filtrar(termo) {
     const busca = termo.trim().toLowerCase();
@@ -200,15 +257,76 @@
     alvo.scrollIntoView({ block: "nearest" });
   }
 
-  function usar(resposta) {
-    const texto = aplicarVariaveis(resposta.texto);
-    if (escreverNoCampo(texto, { substituirTudo: modoAtalho })) {
+  function inserir(resposta, valores) {
+    let texto = resposta.texto;
+    if (valores) {
+      Object.entries(valores).forEach(([campo, valor]) => {
+        texto = texto.replaceAll(`[[${campo}]]`, valor);
+      });
+    }
+    if (escreverNoCampo(aplicarVariaveis(texto), { substituirTudo: modoAtalho })) {
       D.registrarUso(resposta.id);
       fecharPainel();
     }
   }
 
-  /* ── aba do cliente ─────────────────────────────────────────────── */
+  function usar(resposta) {
+    const campos = camposDe(resposta.texto);
+    if (!campos.length) {
+      inserir(resposta, null);
+      return;
+    }
+    pedirCampos(resposta, campos);
+  }
+
+  /** Formulário rápido para respostas com [[campo]] dentro. */
+  function pedirCampos(resposta, campos) {
+    const painel = document.getElementById(ID_PAINEL);
+    const area = painel.querySelector(".vertion-conteudo");
+    painel.querySelector(".vertion-busca").hidden = true;
+
+    area.innerHTML = `
+      <p class="vertion-cliente-nome"></p>
+      <form class="vertion-campos"></form>
+    `;
+    area.querySelector(".vertion-cliente-nome").textContent = resposta.titulo;
+
+    const form = area.querySelector(".vertion-campos");
+    campos.forEach((campo, i) => {
+      const bloco = document.createElement("label");
+      bloco.className = "vertion-campo";
+      bloco.innerHTML = `<span></span><input type="text" required />`;
+      bloco.querySelector("span").textContent = campo;
+      if (i === 0) bloco.querySelector("input").autofocus = true;
+      form.appendChild(bloco);
+    });
+
+    const acoes = document.createElement("div");
+    acoes.className = "vertion-acoes";
+    acoes.innerHTML = `
+      <button type="submit" class="vertion-botao-acao vertion-botao-acao--principal">Inserir</button>
+      <button type="button" class="vertion-botao-acao" data-voltar>Voltar</button>
+    `;
+    form.appendChild(acoes);
+
+    form.querySelector("[data-voltar]").addEventListener("click", () => {
+      painel.querySelector(".vertion-busca").hidden = false;
+      desenharConteudo(painel);
+    });
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const valores = {};
+      [...form.querySelectorAll(".vertion-campo")].forEach((bloco, i) => {
+        valores[campos[i]] = bloco.querySelector("input").value.trim();
+      });
+      inserir(resposta, valores);
+    });
+
+    form.querySelector("input")?.focus();
+  }
+
+  /* ── aba: cliente ───────────────────────────────────────────────── */
 
   function desenharCliente(painel) {
     const area = painel.querySelector(".vertion-conteudo");
@@ -220,17 +338,13 @@
 
     area.innerHTML = `
       <p class="vertion-cliente-nome"></p>
-
       <label class="vertion-rotulo">Etapa do funil</label>
       <div class="vertion-status"></div>
-
       <label class="vertion-rotulo" for="vertion-nota">Anotações (só você vê)</label>
       <textarea id="vertion-nota" class="vertion-nota" rows="5"
         placeholder="O que esse cliente precisa, o que já foi combinado..."></textarea>
-
       <label class="vertion-rotulo" for="vertion-lembrete">Voltar a falar em</label>
       <input type="date" id="vertion-lembrete" class="vertion-data" />
-
       <p class="vertion-salvo"></p>
     `;
 
@@ -259,11 +373,11 @@
     nota.value = fichaAtual.nota ?? "";
     lembrete.value = fichaAtual.lembrete ?? "";
 
-    let timer;
+    let sumir;
     const marcarSalvo = () => {
       salvo.textContent = "Salvo";
-      clearTimeout(timer);
-      timer = setTimeout(() => (salvo.textContent = ""), 1600);
+      clearTimeout(sumir);
+      sumir = setTimeout(() => (salvo.textContent = ""), 1600);
     };
 
     let espera;
@@ -283,6 +397,103 @@
     });
   }
 
+  /* ── aba: funil ─────────────────────────────────────────────────── */
+
+  function cartaoDeCliente(nome, ficha, destaque) {
+    const status = D.STATUS.find((s) => s.id === ficha.status);
+    const cartao = document.createElement("button");
+    cartao.type = "button";
+    cartao.className = "vertion-item" + (destaque ? " vertion-item--alerta" : "");
+    cartao.innerHTML = `
+      <span class="vertion-item-topo">
+        <span class="vertion-item-titulo"></span>
+        <span class="vertion-item-atalho"></span>
+      </span>
+      <span class="vertion-item-texto"></span>
+    `;
+    cartao.querySelector(".vertion-item-titulo").textContent = nome;
+    cartao.querySelector(".vertion-item-atalho").textContent = ficha.lembrete
+      ? new Date(ficha.lembrete + "T12:00").toLocaleDateString("pt-BR")
+      : status?.rotulo ?? "";
+    cartao.querySelector(".vertion-item-texto").textContent =
+      (ficha.nota || "").trim() || "sem anotação";
+    cartao.addEventListener("click", () => procurarConversa(nome));
+    return cartao;
+  }
+
+  function desenharFunil(painel) {
+    const area = painel.querySelector(".vertion-conteudo");
+    area.innerHTML = "";
+
+    const atrasados = lembretesVencidos();
+    const total = Object.keys(clientes).length;
+
+    if (!total) {
+      area.innerHTML = `<p class="vertion-vazio">Nenhuma ficha ainda. Marque a etapa de um cliente na aba Cliente.</p>`;
+      return;
+    }
+
+    if (atrasados.length) {
+      const titulo = document.createElement("p");
+      titulo.className = "vertion-rotulo vertion-rotulo--alerta";
+      titulo.textContent = `Retorno atrasado (${atrasados.length})`;
+      area.appendChild(titulo);
+      atrasados.forEach(([nome, ficha]) => area.appendChild(cartaoDeCliente(nome, ficha, true)));
+    }
+
+    D.STATUS.forEach((status) => {
+      const doGrupo = Object.entries(clientes).filter(
+        ([nome, ficha]) =>
+          ficha.status === status.id && !atrasados.some(([outro]) => outro === nome)
+      );
+      if (!doGrupo.length) return;
+
+      const titulo = document.createElement("p");
+      titulo.className = "vertion-rotulo";
+      titulo.textContent = `${status.rotulo} (${doGrupo.length})`;
+      area.appendChild(titulo);
+      doGrupo.forEach(([nome, ficha]) => area.appendChild(cartaoDeCliente(nome, ficha, false)));
+    });
+  }
+
+  /* ── aba: novo contato ──────────────────────────────────────────── */
+
+  function desenharNovo(painel) {
+    const area = painel.querySelector(".vertion-conteudo");
+    area.innerHTML = `
+      <p class="vertion-explicacao">
+        Abre conversa com um número que não está salvo na sua agenda.
+      </p>
+      <form class="vertion-campos">
+        <label class="vertion-campo">
+          <span>Telefone com DDD</span>
+          <input type="tel" id="vertion-numero" placeholder="21 96019-4636" required />
+        </label>
+        <label class="vertion-campo">
+          <span>Primeira mensagem (opcional)</span>
+          <textarea id="vertion-primeira" rows="3" placeholder="Deixe em branco para abrir a conversa vazia."></textarea>
+        </label>
+        <div class="vertion-acoes">
+          <button type="submit" class="vertion-botao-acao vertion-botao-acao--principal">Abrir conversa</button>
+        </div>
+      </form>
+      <p class="vertion-explicacao">
+        Números com até 11 dígitos recebem o DDI ${config.ddiPadrao || "55"} automaticamente.
+        A mensagem entra no campo — você confere e envia.
+      </p>
+    `;
+
+    const form = area.querySelector("form");
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      abrirPorNumero(
+        area.querySelector("#vertion-numero").value,
+        area.querySelector("#vertion-primeira").value
+      );
+    });
+    area.querySelector("#vertion-numero").focus();
+  }
+
   /* ── painel ─────────────────────────────────────────────────────── */
 
   function desenharConteudo(painel) {
@@ -293,12 +504,16 @@
     });
 
     if (aba === "respostas") desenharRespostas(painel, busca.value);
-    else desenharCliente(painel);
+    else if (aba === "cliente") desenharCliente(painel);
+    else if (aba === "funil") desenharFunil(painel);
+    else desenharNovo(painel);
   }
 
-  async function abrirPainel({ filtro = "" } = {}) {
+  async function abrirPainel({ filtro = "", abaInicial = "respostas" } = {}) {
     if (document.getElementById(ID_PAINEL)) return;
 
+    config = await D.lerConfig();
+    clientes = await D.carregarClientes();
     await carregarFicha();
 
     const painel = document.createElement("div");
@@ -310,8 +525,10 @@
         <button type="button" class="vertion-fechar" aria-label="Fechar">&times;</button>
       </div>
       <div class="vertion-abas" role="tablist">
-        <button type="button" class="vertion-aba vertion-aba--ativa" data-aba="respostas">Respostas</button>
+        <button type="button" class="vertion-aba" data-aba="respostas">Respostas</button>
         <button type="button" class="vertion-aba" data-aba="cliente">Cliente</button>
+        <button type="button" class="vertion-aba" data-aba="funil">Funil</button>
+        <button type="button" class="vertion-aba" data-aba="novo">Novo</button>
       </div>
       <input type="text" class="vertion-busca" placeholder="Buscar resposta..." aria-label="Buscar resposta" />
       <div class="vertion-conteudo"></div>
@@ -321,7 +538,7 @@
 
     const busca = painel.querySelector(".vertion-busca");
     busca.value = filtro;
-    aba = "respostas";
+    aba = abaInicial;
     desenharConteudo(painel);
 
     painel.querySelectorAll(".vertion-aba").forEach((botao) => {
@@ -350,7 +567,7 @@
     });
 
     painel.querySelector(".vertion-fechar").addEventListener("click", fecharPainel);
-    busca.focus();
+    if (aba === "respostas") busca.focus();
     document.addEventListener("mousedown", fecharSeForaDoPainel, true);
   }
 
@@ -366,20 +583,15 @@
     document.getElementById(ID_PAINEL)?.remove();
     document.removeEventListener("mousedown", fecharSeForaDoPainel, true);
     modoAtalho = false;
-    acharCampo()?.focus();
   }
 
-  function alternarPainel() {
+  function alternarPainel(abaInicial) {
     if (document.getElementById(ID_PAINEL)) fecharPainel();
-    else abrirPainel();
+    else abrirPainel({ abaInicial });
   }
 
   /* ── atalho digitado no campo ───────────────────────────────────── */
 
-  /**
-   * Digitar "/preco" no campo abre o painel já filtrado. Ao escolher, o
-   * "/preco" some e a resposta entra no lugar.
-   */
   function vigiarCampo(evento) {
     const campo = acharCampo();
     if (!campo || evento.target !== campo) return;
@@ -412,7 +624,6 @@
     botao.id = ID_BOTAO;
     botao.type = "button";
     botao.className = "vertion-botao";
-    botao.title = "Central da Vertion (Ctrl+Shift+Espaço)";
     botao.setAttribute("aria-label", "Abrir central de atendimento da Vertion");
     botao.innerHTML = `
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -420,7 +631,10 @@
         <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
       </svg>
     `;
-    botao.addEventListener("click", alternarPainel);
+    // Com retorno atrasado, o clique já cai no funil, que é onde eles estão.
+    botao.addEventListener("click", () =>
+      alternarPainel(lembretesVencidos().length ? "funil" : "respostas")
+    );
     document.body.appendChild(botao);
     atualizarBadge();
   }
@@ -428,8 +642,11 @@
   /* ── início ─────────────────────────────────────────────────────── */
 
   async function iniciar() {
-    respostas = await D.carregar();
-    clientes = await D.carregarClientes();
+    [respostas, clientes, config] = await Promise.all([
+      D.carregar(),
+      D.carregarClientes(),
+      D.lerConfig(),
+    ]);
 
     D.aoMudar((nova) => {
       respostas = nova;

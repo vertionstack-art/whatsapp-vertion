@@ -47,7 +47,14 @@ const PADRAO = globalThis.VertionBiblioteca ?? [];
 
 async function lerConfig() {
   const dados = await chrome.storage.sync.get(CHAVE_CONFIG);
-  return { urlBiblioteca: URL_PADRAO, sincronizadoEm: "", ...(dados[CHAVE_CONFIG] ?? {}) };
+  return {
+    urlBiblioteca: URL_PADRAO,
+    sincronizadoEm: "",
+    meuNome: "",
+    assinatura: "",
+    ddiPadrao: "55",
+    ...(dados[CHAVE_CONFIG] ?? {}),
+  };
 }
 
 async function salvarConfig(parcial) {
@@ -159,6 +166,32 @@ async function carregarUso() {
   return dados[CHAVE_USO] ?? {};
 }
 
+
+/* ── exportar o funil ───────────────────────────────────────────────── */
+
+/** Monta um CSV das fichas, pra abrir no Excel e enxergar o funil inteiro. */
+async function fichasEmCsv() {
+  const clientes = await carregarClientes();
+  const rotulo = Object.fromEntries(STATUS.map((s) => [s.id, s.rotulo]));
+
+  const escapar = (valor) => `"${String(valor ?? "").replaceAll('"', '""')}"`;
+  const linhas = [["Contato", "Etapa", "Anotacao", "Retorno em", "Atualizado em"]];
+
+  Object.entries(clientes).forEach(([contato, ficha]) => {
+    linhas.push([
+      contato,
+      rotulo[ficha.status] ?? "",
+      (ficha.nota ?? "").replaceAll("\n", " "),
+      ficha.lembrete ?? "",
+      (ficha.atualizadoEm ?? "").slice(0, 10),
+    ]);
+  });
+
+  // Ponto e virgula e BOM porque e assim que o Excel em portugues abre certo.
+  const csv = linhas.map((l) => l.map(escapar).join(";")).join("\n");
+  return "\ufeff" + csv;
+}
+
 /* ── avisos de mudança ──────────────────────────────────────────────── */
 
 function aoMudar(callback) {
@@ -185,5 +218,6 @@ globalThis.VertionDados = {
   carregarClientes,
   registrarUso,
   carregarUso,
+  fichasEmCsv,
   aoMudar,
 };

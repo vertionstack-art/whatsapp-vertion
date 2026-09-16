@@ -34,7 +34,7 @@
       </label>
       <label class="campo">
         <span>Resposta</span>
-        <textarea id="campo-texto" required rows="5" placeholder="Use {primeiro_nome} para chamar a pessoa pelo nome."></textarea>
+        <textarea id="campo-texto" required rows="5" placeholder="Use {primeiro_nome}, {saudacao} ou [[valor]] para um campo que voce preenche na hora."></textarea>
       </label>
       <div class="acoes">
         <button type="submit" class="botao botao--principal">Salvar</button>
@@ -48,12 +48,21 @@
       <details class="avancado">
         <summary>Configuração avançada</summary>
         <label class="campo">
+          <span>Seu nome (vira {meu_nome})</span>
+          <input type="text" id="campo-meu-nome" maxlength="40" placeholder="Lucas" />
+        </label>
+        <label class="campo">
+          <span>Assinatura no fim de cada resposta</span>
+          <input type="text" id="campo-assinatura" maxlength="80" placeholder="Lucas · Vertion Stack" />
+        </label>
+        <label class="campo">
           <span>Endereço da biblioteca</span>
           <input type="url" id="campo-url" placeholder="https://..." />
         </label>
         <div class="acoes">
-          <button type="button" id="salvar-url" class="botao botao--pequeno">Salvar endereço</button>
-          <button type="button" id="exportar" class="botao botao--pequeno">Exportar minhas</button>
+          <button type="button" id="salvar-config" class="botao botao--principal botao--pequeno">Salvar</button>
+          <button type="button" id="exportar-funil" class="botao botao--pequeno">Exportar funil</button>
+          <button type="button" id="exportar" class="botao botao--pequeno">Minhas respostas</button>
         </div>
         <p class="dica">
           A biblioteca da equipe chega sozinha pela internet. As respostas que você criar aqui

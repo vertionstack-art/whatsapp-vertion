@@ -9,6 +9,8 @@ const campoTitulo = document.getElementById("campo-titulo");
 const campoAtalho = document.getElementById("campo-atalho");
 const campoTexto = document.getElementById("campo-texto");
 const campoUrl = document.getElementById("campo-url");
+const campoMeuNome = document.getElementById("campo-meu-nome");
+const campoAssinatura = document.getElementById("campo-assinatura");
 const statusSincronia = document.getElementById("sincronia-status");
 
 let todas = [];
@@ -165,26 +167,39 @@ document.getElementById("sincronizar").addEventListener("click", async () => {
   else statusSincronia.textContent = "não consegui acessar a biblioteca";
 });
 
-document.getElementById("salvar-url").addEventListener("click", async () => {
+document.getElementById("salvar-config").addEventListener("click", async () => {
   const url = campoUrl.value.trim();
   if (url && !url.startsWith("https://")) {
     alert("O endereço precisa começar com https://");
     return;
   }
-  await D.salvarConfig({ urlBiblioteca: url || D.URL_PADRAO });
+  await D.salvarConfig({
+    urlBiblioteca: url || D.URL_PADRAO,
+    meuNome: campoMeuNome.value.trim(),
+    assinatura: campoAssinatura.value.trim(),
+  });
   const resultado = await D.sincronizar({ forcar: true });
   if (resultado.ok) await recarregar();
   else statusSincronia.textContent = "esse endereço não respondeu";
 });
 
-document.getElementById("exportar").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(pessoais, null, 2)], { type: "application/json" });
+document.getElementById("exportar-funil").addEventListener("click", async () => {
+  const csv = await D.fichasEmCsv();
+  baixar(csv, "funil-vertion.csv", "text/csv;charset=utf-8");
+});
+
+function baixar(conteudo, nome, tipo) {
+  const blob = new Blob([conteudo], { type: tipo });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "minhas-respostas-vertion.json";
+  link.download = nome;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+document.getElementById("exportar").addEventListener("click", () => {
+  baixar(JSON.stringify(pessoais, null, 2), "minhas-respostas-vertion.json", "application/json");
 });
 
 /* ── carga ──────────────────────────────────────────────────────────── */
@@ -202,6 +217,8 @@ async function recarregar() {
   uso = contagem;
 
   campoUrl.value = config.urlBiblioteca;
+  campoMeuNome.value = config.meuNome ?? "";
+  campoAssinatura.value = config.assinatura ?? "";
   const daEquipe = merged.filter((r) => r.origem === "equipe").length;
   statusSincronia.textContent = `${daEquipe} da equipe · ${quandoFoi(config.sincronizadoEm)}`;
 

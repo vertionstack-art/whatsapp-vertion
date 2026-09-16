@@ -328,3 +328,112 @@
   font-size: 11px;
   color: #2e7d3e;
 }
+
+/* ── quatro abas cabem mais apertadas ─────────────────────────────── */
+
+.vertion-aba {
+  padding: 7px 6px;
+  font-size: 12px;
+}
+
+/* ── funil ────────────────────────────────────────────────────────── */
+
+.vertion-rotulo--alerta {
+  color: #b3261e;
+}
+
+.vertion-item--alerta {
+  border-color: #f3c8c5;
+  background: #fdf3f2;
+}
+
+.vertion-item--alerta .vertion-item-atalho {
+  color: #b3261e;
+  font-weight: 600;
+}
+
+/* ── formulários (campos da resposta e novo contato) ──────────────── */
+
+.vertion-campos {
+  padding: 0 6px;
+}
+
+.vertion-campo {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.vertion-campo span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6e6788;
+}
+
+.vertion-campo input,
+.vertion-campo textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e7e3f1;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #12101b;
+  background: #f8f7fb;
+  outline: none;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.vertion-campo input:focus,
+.vertion-campo textarea:focus {
+  border-color: #7a16e0;
+  background: #ffffff;
+}
+
+.vertion-acoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.vertion-botao-acao {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #d5cfe5;
+  border-radius: 10px;
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #12101b;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.vertion-botao-acao:hover {
+  border-color: #7a16e0;
+  color: #7a16e0;
+}
+
+.vertion-botao-acao--principal {
+  border-color: #7a16e0;
+  background: #7a16e0;
+  color: #ffffff;
+}
+
+.vertion-botao-acao--principal:hover {
+  background: #6410bc;
+  color: #ffffff;
+}
+
+.vertion-explicacao {
+  margin: 0 6px 14px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #6e6788;
+}
