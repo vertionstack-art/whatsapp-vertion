@@ -195,3 +195,89 @@ h1 {
   text-transform: uppercase;
   color: #a9a2bf;
 }
+
+.sincronia {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid #e7e3f1;
+  border-radius: 12px;
+  background: #f7f2fe;
+}
+
+.sincronia-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sincronia-texto strong {
+  font-size: 12.5px;
+  color: #12101b;
+}
+
+.sincronia-texto span {
+  font-size: 11px;
+  color: #6e6788;
+}
+
+.item-rodape {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+
+.etiqueta {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.etiqueta--equipe {
+  background: #efe4fd;
+  color: #4c0c90;
+}
+
+.etiqueta--minha {
+  background: #f1eff7;
+  color: #565068;
+}
+
+.avancado summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: #565068;
+  list-style: none;
+}
+
+.avancado summary::-webkit-details-marker {
+  display: none;
+}
+
+.avancado summary::before {
+  content: "⚙ ";
+}
+
+.avancado summary:hover {
+  color: #7a16e0;
+}
+
+.avancado[open] summary {
+  margin-bottom: 12px;
+}
+
+.rodape {
+  display: block;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #f1eff7;
+}

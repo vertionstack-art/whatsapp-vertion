@@ -1,15 +1,31 @@
 /**
  * Camada de dados da extensão.
  *
- * Tudo vive no chrome.storage.sync, que acompanha a conta Google de cada
- * pessoa — some do PC e aparece no notebook sozinho. Para a equipe inteira
- * enxergar a mesma coisa, basta trocar o corpo destas funções por chamadas ao
- * painel na nuvem; nada fora deste arquivo precisa mudar.
+ * São duas origens de resposta:
+ *
+ *  1. BIBLIOTECA DA EQUIPE — vem da nuvem (o painel publicado na Vercel).
+ *     Quando alguém edita e publica, todo mundo recebe sozinho, sem
+ *     reinstalar e sem recarregar. Fica em cache local para funcionar
+ *     mesmo sem internet.
+ *
+ *  2. RESPOSTAS PESSOAIS — criadas no popup por cada um. Ficam no
+ *     chrome.storage.sync, então acompanham a conta Google da pessoa.
+ *
+ * Na hora de usar, as duas listas são juntadas. Se um atalho existir nas
+ * duas, a pessoal ganha — quem ajustou o texto para si tem a última palavra.
  */
 
-const CHAVE_RESPOSTAS = "vertion_respostas";
+const CHAVE_PESSOAIS = "vertion_respostas";
 const CHAVE_CLIENTES = "vertion_clientes";
 const CHAVE_USO = "vertion_uso";
+const CHAVE_CONFIG = "vertion_config";
+const CHAVE_CACHE = "vertion_biblioteca";
+
+/** Endereço padrão da biblioteca. Dá para trocar no popup. */
+const URL_PADRAO = "https://whatsapp-vertion.vercel.app/api/respostas";
+
+/** De quanto em quanto tempo buscar a biblioteca de novo. */
+const INTERVALO_MS = 30 * 60 * 1000;
 
 /** Etapas do funil. A ordem é a do processo comercial da Vertion. */
 const STATUS = [
@@ -22,8 +38,8 @@ const STATUS = [
 ];
 
 /**
- * Respostas que já vêm prontas na primeira instalação.
- * {nome} e {primeiro_nome} são trocados pelo nome de quem está na conversa.
+ * Rede de segurança: se a nuvem estiver fora do ar na primeira instalação,
+ * a pessoa ainda tem com o que trabalhar.
  */
 const PADRAO = [
   {
@@ -45,50 +61,88 @@ const PADRAO = [
     atalho: "prazo",
     titulo: "Quanto tempo demora",
     texto:
-      "Site e landing page saem em 3 a 7 dias úteis. Dashboard e automação variam conforme a complexidade, e o prazo exato vai por escrito na proposta, depois que eu entender sua necessidade.",
-  },
-  {
-    id: "fidelidade",
-    atalho: "fidelidade",
-    titulo: "Tem fidelidade",
-    texto:
-      "Não tem fidelidade. Você contrata o projeto que precisa e pronto, sem mensalidade obrigatória.",
-  },
-  {
-    id: "como-funciona",
-    atalho: "comofunciona",
-    titulo: "Como funciona",
-    texto:
-      "São quatro passos: (1) uma conversa de 15 min pra eu entender seu processo, (2) proposta por escrito em até 48h com prazo e valor, (3) construção, e (4) entrega com suporte pra ajustes.",
-  },
-  {
-    id: "horario",
-    atalho: "horario",
-    titulo: "Horário de atendimento",
-    texto: "A gente atende das 8h às 23h. Fora disso eu respondo logo cedo, a partir das 8h.",
-  },
-  {
-    id: "fechamento",
-    atalho: "fechar",
-    titulo: "Fechamento",
-    texto:
-      "Fechado, {primeiro_nome}! Vou montar a proposta com prazo e valor e te mando por aqui em até 48h. Qualquer dúvida no meio do caminho, é só chamar.",
+      "Site e landing page saem em 3 a 7 dias úteis. Dashboard e automação variam conforme a complexidade, e o prazo exato vai por escrito na proposta.",
   },
 ];
 
-/* ── respostas ──────────────────────────────────────────────────────── */
+/* ── configuração ───────────────────────────────────────────────────── */
 
-async function carregar() {
-  const dados = await chrome.storage.sync.get(CHAVE_RESPOSTAS);
-  const lista = dados[CHAVE_RESPOSTAS];
-  if (Array.isArray(lista) && lista.length) return lista;
+async function lerConfig() {
+  const dados = await chrome.storage.sync.get(CHAVE_CONFIG);
+  return { urlBiblioteca: URL_PADRAO, sincronizadoEm: "", ...(dados[CHAVE_CONFIG] ?? {}) };
+}
 
-  await chrome.storage.sync.set({ [CHAVE_RESPOSTAS]: PADRAO });
-  return PADRAO;
+async function salvarConfig(parcial) {
+  const atual = await lerConfig();
+  await chrome.storage.sync.set({ [CHAVE_CONFIG]: { ...atual, ...parcial } });
+}
+
+/* ── biblioteca da equipe ───────────────────────────────────────────── */
+
+function valida(item) {
+  return item && typeof item.titulo === "string" && typeof item.atalho === "string" && typeof item.texto === "string";
+}
+
+async function lerCache() {
+  const dados = await chrome.storage.local.get(CHAVE_CACHE);
+  const cache = dados[CHAVE_CACHE];
+  return Array.isArray(cache?.respostas) ? cache : { respostas: [], buscadoEm: 0 };
+}
+
+/**
+ * Busca a biblioteca na nuvem e guarda em cache.
+ * Falha em silêncio de propósito: sem internet, a extensão continua
+ * funcionando com o que já estava salvo.
+ */
+async function sincronizar({ forcar = false } = {}) {
+  const cache = await lerCache();
+  const vencido = Date.now() - (cache.buscadoEm ?? 0) > INTERVALO_MS;
+  if (!forcar && !vencido && cache.respostas.length) return { ok: true, doCache: true };
+
+  const { urlBiblioteca } = await lerConfig();
+  try {
+    const resposta = await fetch(urlBiblioteca, { cache: "no-store" });
+    if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+
+    const corpo = await resposta.json();
+    const lista = (Array.isArray(corpo) ? corpo : corpo?.respostas ?? []).filter(valida);
+    if (!lista.length) throw new Error("biblioteca vazia");
+
+    await chrome.storage.local.set({
+      [CHAVE_CACHE]: { respostas: lista, buscadoEm: Date.now() },
+    });
+    await salvarConfig({ sincronizadoEm: new Date().toISOString() });
+    return { ok: true, total: lista.length };
+  } catch (erro) {
+    return { ok: false, erro: String(erro.message ?? erro) };
+  }
+}
+
+/* ── respostas pessoais ─────────────────────────────────────────────── */
+
+async function lerPessoais() {
+  const dados = await chrome.storage.sync.get(CHAVE_PESSOAIS);
+  return Array.isArray(dados[CHAVE_PESSOAIS]) ? dados[CHAVE_PESSOAIS] : [];
 }
 
 async function salvar(lista) {
-  await chrome.storage.sync.set({ [CHAVE_RESPOSTAS]: lista });
+  await chrome.storage.sync.set({ [CHAVE_PESSOAIS]: lista });
+}
+
+/* ── lista final ────────────────────────────────────────────────────── */
+
+/** Junta biblioteca + pessoais. Em caso de atalho repetido, a pessoal vence. */
+async function carregar() {
+  sincronizar(); // roda em segundo plano; não segura a tela
+
+  const [cache, pessoais] = await Promise.all([lerCache(), lerPessoais()]);
+  const equipe = cache.respostas.length ? cache.respostas : PADRAO;
+
+  const porAtalho = new Map();
+  equipe.forEach((r) => porAtalho.set(r.atalho, { ...r, origem: "equipe" }));
+  pessoais.forEach((r) => porAtalho.set(r.atalho, { ...r, origem: "pessoal" }));
+
+  return [...porAtalho.values()];
 }
 
 /* ── ficha do cliente (notas, status e lembrete) ────────────────────── */
@@ -115,7 +169,6 @@ async function salvarCliente(chave, ficha) {
 
 /* ── contador de uso ────────────────────────────────────────────────── */
 
-/** Conta quantas vezes cada resposta foi usada, pra saber o que vale manter. */
 async function registrarUso(id) {
   const dados = await chrome.storage.sync.get(CHAVE_USO);
   const uso = dados[CHAVE_USO] ?? {};
@@ -131,17 +184,24 @@ async function carregarUso() {
 /* ── avisos de mudança ──────────────────────────────────────────────── */
 
 function aoMudar(callback) {
-  chrome.storage.onChanged.addListener((mudancas, area) => {
-    if (area !== "sync") return;
-    if (mudancas[CHAVE_RESPOSTAS]) callback(mudancas[CHAVE_RESPOSTAS].newValue ?? []);
+  chrome.storage.onChanged.addListener(async (mudancas, area) => {
+    const mexeuNaLista =
+      (area === "sync" && mudancas[CHAVE_PESSOAIS]) ||
+      (area === "local" && mudancas[CHAVE_CACHE]);
+    if (mexeuNaLista) callback(await carregar());
   });
 }
 
 globalThis.VertionDados = {
   STATUS,
   PADRAO,
+  URL_PADRAO,
   carregar,
   salvar,
+  lerPessoais,
+  sincronizar,
+  lerConfig,
+  salvarConfig,
   lerCliente,
   salvarCliente,
   carregarClientes,

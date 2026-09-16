@@ -1,6 +1,6 @@
-/** Tela de gerenciamento das respostas (o que abre ao clicar no ícone da extensão). */
+/** Tela que abre ao clicar no ícone da extensão. */
 
-const { carregar, salvar, carregarUso } = globalThis.VertionDados;
+const D = globalThis.VertionDados;
 
 const lista = document.getElementById("lista");
 const formulario = document.getElementById("formulario");
@@ -8,8 +8,11 @@ const campoId = document.getElementById("campo-id");
 const campoTitulo = document.getElementById("campo-titulo");
 const campoAtalho = document.getElementById("campo-atalho");
 const campoTexto = document.getElementById("campo-texto");
+const campoUrl = document.getElementById("campo-url");
+const statusSincronia = document.getElementById("sincronia-status");
 
-let respostas = [];
+let todas = [];
+let pessoais = [];
 let uso = {};
 
 /** Vira um atalho seguro: minúsculo, sem espaço e sem acento. */
@@ -21,18 +24,26 @@ function normalizarAtalho(valor) {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function quandoFoi(iso) {
+  if (!iso) return "nunca sincronizada";
+  const minutos = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (minutos < 1) return "atualizada agora";
+  if (minutos < 60) return `atualizada há ${minutos} min`;
+  const horas = Math.round(minutos / 60);
+  if (horas < 24) return `atualizada há ${horas}h`;
+  return `atualizada há ${Math.round(horas / 24)} dia(s)`;
+}
+
 function desenhar() {
   lista.innerHTML = "";
 
-  if (!respostas.length) {
-    const vazio = document.createElement("li");
-    vazio.className = "vazio";
-    vazio.textContent = "Nenhuma resposta cadastrada ainda.";
-    lista.appendChild(vazio);
+  if (!todas.length) {
+    lista.innerHTML = `<li class="vazio">Nenhuma resposta ainda.</li>`;
     return;
   }
 
-  respostas.forEach((resposta) => {
+  todas.forEach((resposta) => {
+    const daEquipe = resposta.origem === "equipe";
     const item = document.createElement("li");
     item.className = "item";
     item.innerHTML = `
@@ -41,23 +52,50 @@ function desenhar() {
         <code class="item-atalho"></code>
       </div>
       <p class="item-texto"></p>
-      <p class="item-uso"></p>
-      <div class="item-acoes">
-        <button type="button" class="botao botao--pequeno" data-acao="editar">Editar</button>
-        <button type="button" class="botao botao--pequeno botao--perigo" data-acao="excluir">Excluir</button>
+      <div class="item-rodape">
+        <span class="etiqueta"></span>
+        <span class="item-uso"></span>
       </div>
+      <div class="item-acoes"></div>
     `;
     item.querySelector(".item-titulo").textContent = resposta.titulo;
     item.querySelector(".item-atalho").textContent = "/" + resposta.atalho;
     item.querySelector(".item-texto").textContent = resposta.texto;
 
-    // Saber o que é usado ajuda a podar o que não serve.
+    const etiqueta = item.querySelector(".etiqueta");
+    etiqueta.textContent = daEquipe ? "equipe" : "minha";
+    etiqueta.classList.add(daEquipe ? "etiqueta--equipe" : "etiqueta--minha");
+
     const vezes = uso[resposta.id] ?? 0;
     item.querySelector(".item-uso").textContent =
       vezes === 0 ? "ainda não usada" : `usada ${vezes}x`;
 
-    item.querySelector('[data-acao="editar"]').addEventListener("click", () => editar(resposta));
-    item.querySelector('[data-acao="excluir"]').addEventListener("click", () => excluir(resposta));
+    const acoes = item.querySelector(".item-acoes");
+    if (daEquipe) {
+      // Editar uma da equipe cria uma cópia pessoal que passa na frente —
+      // é o caminho certo pra quem quer ajustar o texto só pra si.
+      const copiar = document.createElement("button");
+      copiar.type = "button";
+      copiar.className = "botao botao--pequeno";
+      copiar.textContent = "Criar minha versão";
+      copiar.addEventListener("click", () => abrirFormulario({ ...resposta, id: "" }));
+      acoes.appendChild(copiar);
+    } else {
+      const editar = document.createElement("button");
+      editar.type = "button";
+      editar.className = "botao botao--pequeno";
+      editar.textContent = "Editar";
+      editar.addEventListener("click", () => abrirFormulario(resposta));
+
+      const excluir = document.createElement("button");
+      excluir.type = "button";
+      excluir.className = "botao botao--pequeno botao--perigo";
+      excluir.textContent = "Excluir";
+      excluir.addEventListener("click", () => remover(resposta));
+
+      acoes.append(editar, excluir);
+    }
+
     lista.appendChild(item);
   });
 }
@@ -77,16 +115,12 @@ function fecharFormulario() {
   formulario.hidden = true;
 }
 
-function editar(resposta) {
-  abrirFormulario(resposta);
-}
-
-async function excluir(resposta) {
+async function remover(resposta) {
   // Ação destrutiva: confirma antes, porque não dá pra desfazer.
   if (!confirm(`Excluir a resposta "${resposta.titulo}"?`)) return;
-  respostas = respostas.filter((r) => r.id !== resposta.id);
-  await salvar(respostas);
-  desenhar();
+  pessoais = pessoais.filter((r) => r.id !== resposta.id);
+  await D.salvar(pessoais);
+  await recarregar();
 }
 
 formulario.addEventListener("submit", async (evento) => {
@@ -99,76 +133,79 @@ formulario.addEventListener("submit", async (evento) => {
   }
 
   const id = campoId.value;
-  const duplicado = respostas.find((r) => r.atalho === atalho && r.id !== id);
-  if (duplicado) {
-    alert(`O atalho /${atalho} já é usado por "${duplicado.titulo}".`);
+  const duplicada = pessoais.find((r) => r.atalho === atalho && r.id !== id);
+  if (duplicada) {
+    alert(`O atalho /${atalho} já é usado por "${duplicada.titulo}".`);
     return;
   }
 
   const dados = {
-    id: id || `r${Date.now()}`,
+    id: id || `p${Date.now()}`,
     titulo: campoTitulo.value.trim(),
     atalho,
     texto: campoTexto.value.trim(),
   };
 
-  respostas = id
-    ? respostas.map((r) => (r.id === id ? dados : r))
-    : [...respostas, dados];
+  pessoais = id ? pessoais.map((r) => (r.id === id ? dados : r)) : [...pessoais, dados];
 
-  await salvar(respostas);
+  await D.salvar(pessoais);
   fecharFormulario();
-  desenhar();
+  await recarregar();
 });
 
 document.getElementById("nova").addEventListener("click", () => abrirFormulario(null));
 document.getElementById("cancelar").addEventListener("click", fecharFormulario);
 
-/* ── levar as respostas para os sócios ──────────────────────────────── */
+/* ── biblioteca da equipe ───────────────────────────────────────────── */
+
+document.getElementById("sincronizar").addEventListener("click", async () => {
+  statusSincronia.textContent = "buscando...";
+  const resultado = await D.sincronizar({ forcar: true });
+  if (resultado.ok) await recarregar();
+  else statusSincronia.textContent = "não consegui acessar a biblioteca";
+});
+
+document.getElementById("salvar-url").addEventListener("click", async () => {
+  const url = campoUrl.value.trim();
+  if (url && !url.startsWith("https://")) {
+    alert("O endereço precisa começar com https://");
+    return;
+  }
+  await D.salvarConfig({ urlBiblioteca: url || D.URL_PADRAO });
+  const resultado = await D.sincronizar({ forcar: true });
+  if (resultado.ok) await recarregar();
+  else statusSincronia.textContent = "esse endereço não respondeu";
+});
 
 document.getElementById("exportar").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(respostas, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(pessoais, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "respostas-vertion.json";
+  link.download = "minhas-respostas-vertion.json";
   link.click();
   URL.revokeObjectURL(url);
 });
 
-const arquivo = document.getElementById("arquivo");
-document.getElementById("importar").addEventListener("click", () => arquivo.click());
+/* ── carga ──────────────────────────────────────────────────────────── */
 
-arquivo.addEventListener("change", async () => {
-  const selecionado = arquivo.files?.[0];
-  if (!selecionado) return;
+async function recarregar() {
+  const [merged, minhas, contagem, config] = await Promise.all([
+    D.carregar(),
+    D.lerPessoais(),
+    D.carregarUso(),
+    D.lerConfig(),
+  ]);
 
-  try {
-    const conteudo = JSON.parse(await selecionado.text());
-    if (!Array.isArray(conteudo)) throw new Error("formato inesperado");
-
-    const validas = conteudo.filter((r) => r?.titulo && r?.atalho && r?.texto);
-    if (!validas.length) throw new Error("nenhuma resposta válida");
-
-    if (!confirm(`Importar ${validas.length} resposta(s)? Isso substitui a lista atual.`)) return;
-
-    respostas = validas.map((r, i) => ({
-      id: r.id || `r${Date.now()}${i}`,
-      titulo: String(r.titulo),
-      atalho: normalizarAtalho(String(r.atalho)),
-      texto: String(r.texto),
-    }));
-    await salvar(respostas);
-    desenhar();
-  } catch {
-    alert("Não consegui ler esse arquivo. Use um exportado por esta extensão.");
-  } finally {
-    arquivo.value = "";
-  }
-});
-
-Promise.all([carregar(), carregarUso()]).then(([iniciais, contagem]) => {
-  respostas = iniciais;
+  todas = merged;
+  pessoais = minhas;
   uso = contagem;
+
+  campoUrl.value = config.urlBiblioteca;
+  const daEquipe = merged.filter((r) => r.origem === "equipe").length;
+  statusSincronia.textContent = `${daEquipe} da equipe · ${quandoFoi(config.sincronizadoEm)}`;
+
   desenhar();
-});
+}
+
+recarregar();

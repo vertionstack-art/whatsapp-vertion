@@ -1,17 +1,24 @@
 {
   "manifest_version": 3,
   "name": "Vertion Atendimento",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Respostas prontas, ficha do cliente e lembretes dentro do WhatsApp Web. Nunca envia mensagem sozinha.",
   "permissions": [
     "storage"
   ],
   "host_permissions": [
-    "https://web.whatsapp.com/*"
+    "https://web.whatsapp.com/*",
+    "https://*.vercel.app/*",
+    "https://vertionstack.com/*"
   ],
   "action": {
     "default_title": "Vertion Atendimento",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
   },
   "content_scripts": [
     {
@@ -27,5 +34,10 @@
       ],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
 }
