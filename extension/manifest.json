@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Vertion Atendimento",
+  "version": "0.1.0",
+  "description": "Biblioteca de respostas prontas dentro do WhatsApp Web, para a equipe da Vertion Stack responder mais rápido.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://web.whatsapp.com/*"
+  ],
+  "action": {
+    "default_title": "Vertion Atendimento",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://web.whatsapp.com/*"
+      ],
+      "js": [
+        "src/storage.js",
+        "src/content.js"
+      ],
+      "css": [
+        "src/content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

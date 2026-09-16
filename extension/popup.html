@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Vertion Atendimento</title>
+    <link rel="stylesheet" href="src/popup.css" />
+  </head>
+  <body>
+    <header class="cabecalho">
+      <div>
+        <p class="marca">Vertion</p>
+        <h1>Respostas prontas</h1>
+      </div>
+      <button type="button" id="nova" class="botao botao--principal">Nova</button>
+    </header>
+
+    <form id="formulario" class="formulario" hidden>
+      <input type="hidden" id="campo-id" />
+      <label class="campo">
+        <span>Título</span>
+        <input type="text" id="campo-titulo" required maxlength="60" placeholder="Quanto custa" />
+      </label>
+      <label class="campo">
+        <span>Atalho (sem barra)</span>
+        <input type="text" id="campo-atalho" required maxlength="24" placeholder="preco" />
+      </label>
+      <label class="campo">
+        <span>Resposta</span>
+        <textarea id="campo-texto" required rows="5" placeholder="Escreva aqui a resposta que a equipe vai usar."></textarea>
+      </label>
+      <div class="acoes">
+        <button type="submit" class="botao botao--principal">Salvar</button>
+        <button type="button" id="cancelar" class="botao">Cancelar</button>
+      </div>
+    </form>
+
+    <ul id="lista" class="lista"></ul>
+
+    <footer class="rodape">
+      <button type="button" id="exportar" class="botao botao--pequeno">Exportar</button>
+      <button type="button" id="importar" class="botao botao--pequeno">Importar</button>
+      <input type="file" id="arquivo" accept="application/json" hidden />
+      <p class="dica">Exporte e mande o arquivo para os sócios importarem.</p>
+    </footer>
+
+    <script src="src/storage.js"></script>
+    <script src="src/popup.js"></script>
+  </body>
+</html>
