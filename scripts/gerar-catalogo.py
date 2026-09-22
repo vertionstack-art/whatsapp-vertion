@@ -29,11 +29,11 @@ NORMAL = FONTES / "segoeui.ttf"
 
 SERVICOS = [
     {
-        "arquivo": "1-automacao",
+        "arquivo": "1-atendimento",
         "numero": "01",
-        "titulo": "Automação de\natendimento",
-        "resumo": "Seu WhatsApp responde, agenda e filtra\ncliente sozinho, inclusive de madrugada.",
-        "itens": ["Resposta automática 24h", "Agendamento sem conflito", "Lembrete antes do horário"],
+        "titulo": "Organização do\natendimento",
+        "resumo": "Seu WhatsApp Business configurado, e a equipe\ncom resposta pronta pra não deixar ninguém esperando.",
+        "itens": ["Resposta pronta em um clique", "Etiquetas que organizam o funil", "Perfil e catálogo completos"],
     },
     {
         "arquivo": "2-sistemas",

@@ -467,7 +467,7 @@
       <form class="vertion-campos">
         <label class="vertion-campo">
           <span>Telefone com DDD</span>
-          <input type="tel" id="vertion-numero" placeholder="21 96019-4636" required />
+          <input type="tel" id="vertion-numero" placeholder="21 98765-4321" required />
         </label>
         <label class="vertion-campo">
           <span>Primeira mensagem (opcional)</span>

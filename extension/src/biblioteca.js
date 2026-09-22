@@ -48,7 +48,7 @@ globalThis.VertionBiblioteca = [
     "id": "segmento",
     "atalho": "segmento",
     "titulo": "Funciona pro meu negócio",
-    "texto": "De barbearia a escritório de advocacia. Se o seu negócio tem atendimento, agenda ou alguma tarefa repetitiva, quase sempre dá pra automatizar."
+    "texto": "De barbearia a escritório de advocacia. Se o seu negócio tem atendimento, agenda ou alguma tarefa repetitiva, quase sempre dá pra organizar e ganhar tempo."
   },
   {
     "id": "tecnologia",
